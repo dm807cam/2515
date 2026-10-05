@@ -103,3 +103,12 @@ All "must have" items from the brief. Deferred: supersets, lb, cloud sync, core 
 
 ## Known limits / next
 kg only · no core work · no supersets (the best time-saver to add) · no cloud sync · start weights are estimates (first session is calibration) · heuristics are tuned by simulation, not yet by real user data.
+
+## Evidence check (what is and isn't grounded)
+- **Volume:** a 2017 meta-regression (Schoenfeld et al.) found growth rising with weekly sets up to ~10 per muscle; common guidance is 10–12 hard sets/week as a starting point. Our full-size targets (chest/back 10, quads 8) are in range; **scaled-down plans (short sessions, 2 days/week) deliberately sit below it** to protect adherence — they trade some growth for consistency.
+- **Strength ratios:** OpenPowerlifting is public domain (meet bests only: bodyweight + squat/bench/deadlift). It can sanity-check the `startRatio` table but cannot replay session-by-session progression. **Not yet done.**
+- **Progression logic:** double progression / "top of range → add load" is mainstream practice, but thresholds (≥half the sets at top, 7 % reduce, 3-week plateau window) are our own and validated only by simulation.
+- No public per-set longitudinal logs of consistent lifters were found, so a real-data backtest is not available. Real validation = users.
+
+## Trust & safety for beginners (added)
+First-set effort guidance ("finish ~N reps short of failure"), a one-tap Too light / About right / Too heavy check after set 1 that rewrites the remaining sets, a live "below/above range" hint, a Stop-on-pain path (area → 7-day limit → swap or skip), and a first-run "how training should feel" card.

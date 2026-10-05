@@ -96,4 +96,32 @@ describe('store', () => {
       for (const set of we.sets) expect(Number.isFinite(set.weight)).toBe(true);
     }
   });
+
+  it('"too heavy" lowers only the remaining sets; "too light" raises them; bodyweight adjusts reps', () => {
+    let s = start();
+    const we0 = s.active!.exercises.find(we => EX[we.exerciseId].load === 'external')!;
+    const sets = we0.sets.filter(x => !x.warmup);
+    s = reducer(s, { type: 'LOG_SET', uid: we0.uid, setId: sets[0].id, weight: sets[0].weight, reps: 9, now: 1 });
+    s = reducer(s, { type: 'ADJUST_REMAINING', uid: we0.uid, dir: 'heavy' });
+    const after = s.active!.exercises.find(x => x.uid === we0.uid)!;
+    const w = after.sets.filter(x => !x.warmup);
+    expect(w[0].weight).toBe(sets[0].weight); // logged set untouched
+    expect(w[1].weight).toBeLessThan(sets[1].weight);
+    expect(after.calibrated).toBe(true);
+    s = reducer(s, { type: 'ADJUST_REMAINING', uid: we0.uid, dir: 'light' });
+    const up = s.active!.exercises.find(x => x.uid === we0.uid)!.sets.filter(x => !x.warmup);
+    expect(up[1].weight).toBeGreaterThan(w[1].weight);
+    for (const x of up) expect(x.weight).toBeGreaterThan(0);
+  });
+
+  it('intro can be dismissed and old saves without the flag still load', () => {
+    let s = reducer(initialState, { type: 'DISMISS_INTRO' });
+    expect(s.introSeen).toBe(true);
+    const st = new MemStorage();
+    const { introSeen: _omit, ...old } = initialState;
+    void _omit;
+    st.setItem(STORAGE_KEY, JSON.stringify(old));
+    s = loadState(st).state;
+    expect(s.introSeen).toBe(false);
+  });
 });

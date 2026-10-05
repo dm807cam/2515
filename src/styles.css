@@ -229,3 +229,6 @@ h1, h2, h3, p { margin: 0; }
 .err-screen { padding: 40px 20px; text-align: center; }
 .kbd-safe { scroll-margin-bottom: 200px; }
 @media (min-width: 520px) { body { background: #05070a; } .app { box-shadow: 0 0 0 1px var(--line); } }
+
+.guide { margin: 0 8px 8px; padding: 12px 14px; border-radius: 14px; background: var(--info-soft); }
+.intro li { margin-bottom: 6px; }

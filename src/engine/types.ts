@@ -99,6 +99,8 @@ export interface WorkoutExercise {
   rest: number;
   effort?: Effort;
   skipped?: boolean;
+  /** the user answered the "too heavy / too light" check on this exercise */
+  calibrated?: boolean;
   rxAction: RxAction;
   rxReason: string;
 }

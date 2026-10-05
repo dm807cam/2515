@@ -163,6 +163,21 @@ export function Today({ onStart, onOpenSettings }: { onStart: (w?: Workout) => v
     <div className="screen col">
       {header}<WeekStrip />
       {banners}
+      {!state.introSeen && (
+        <div className="notice good intro" role="note" data-testid="intro">
+          <Icon name="info" size={20} />
+          <div>
+            <div className="bold">How training should feel</div>
+            <ul className="small" style={{ margin: '6px 0 0', paddingLeft: 18 }}>
+              <li><b>Hard, not all-out.</b> Stop most sets with 2–3 reps still in the tank. A last rep that’s a slow grind means the weight is too heavy.</li>
+              <li><b>Burn is normal, sharp or joint pain isn’t.</b> If something pinches, tap “Sharp pain?” and the app swaps it.</li>
+              <li><b>Week one is deliberately easy.</b> The first weights are estimates; after set 1 tell it “too light / too heavy” and it adjusts.</li>
+              <li>Soreness for a day or two is common when starting out. Don’t chase it.</li>
+            </ul>
+            <div className="actions"><button className="btn primary" onClick={() => dispatch({ type: 'DISMISS_INTRO' })}>Got it</button></div>
+          </div>
+        </div>
+      )}
       <div className="card hero" data-testid="plan-card">
         <div className="row between">
           <div className="title">{w.title}</div>

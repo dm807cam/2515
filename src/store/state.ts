@@ -1,5 +1,7 @@
 import type { DeloadState, Effort, Joint, PlanOptions, Profile, TempLimit, Workout } from '../engine/types';
 import { EMPTY_DELOAD } from '../engine/planner';
+import { EX } from '../engine/exercises';
+import { roundTo } from '../engine/rules';
 
 export const STATE_VERSION = 1;
 
@@ -12,6 +14,7 @@ export interface AppState {
   options: { date: string; opts: PlanOptions } | null;
   deload: DeloadState;
   tempLimits: TempLimit[];
+  introSeen: boolean;
 }
 
 export const initialState: AppState = {
@@ -22,6 +25,7 @@ export const initialState: AppState = {
   options: null,
   deload: EMPTY_DELOAD,
   tempLimits: [],
+  introSeen: false,
 };
 
 export type Action =
@@ -35,6 +39,8 @@ export type Action =
   | { type: 'ADD_SET'; uid: string }
   | { type: 'REMOVE_SET'; uid: string }
   | { type: 'DROP_SET'; uid: string; setId: string }
+  | { type: 'ADJUST_REMAINING'; uid: string; dir: 'heavy' | 'light' | 'ok' }
+  | { type: 'DISMISS_INTRO' }
   | { type: 'SET_EFFORT'; uid: string; effort: Effort | undefined }
   | { type: 'SKIP'; uid: string; skipped: boolean }
   | { type: 'REPLACE_ACTIVE'; workout: Workout }
@@ -99,6 +105,32 @@ export function reducer(s: AppState, a: Action): AppState {
       } : s;
     case 'DROP_SET':
       return s.active ? { ...s, active: mapEx(s.active, a.uid, we => ({ ...we, sets: we.sets.filter(x => x.id !== a.setId) })) } : s;
+    case 'DISMISS_INTRO':
+      return { ...s, introSeen: true };
+    case 'ADJUST_REMAINING':
+      return s.active ? {
+        ...s, active: mapEx(s.active, a.uid, we => {
+          if (a.dir === 'ok') return { ...we, calibrated: true };
+          const ex = EX[we.exerciseId];
+          const heavy = a.dir === 'heavy';
+          return {
+            ...we, calibrated: true,
+            sets: we.sets.map(x => {
+              if (x.done || x.warmup) return x;
+              if (ex.load === 'external') {
+                const inc = ex.increment || 1;
+                const base = x.weight * (heavy ? 0.9 : 1.1);
+                let w = roundTo(base, inc);
+                if (heavy && w >= x.weight) w = Math.max(inc, x.weight - inc);
+                if (!heavy && w <= x.weight) w = x.weight + inc;
+                return { ...x, weight: w };
+              }
+              const reps = Math.max(1, x.reps + (heavy ? -2 : 3));
+              return { ...x, reps, targetReps: reps };
+            }),
+          };
+        }),
+      } : s;
     case 'SET_EFFORT':
       return s.active ? { ...s, active: mapEx(s.active, a.uid, we => ({ ...we, effort: a.effort })) } : s;
     case 'SKIP':

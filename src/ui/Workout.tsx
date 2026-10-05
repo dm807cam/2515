@@ -64,6 +64,7 @@ export function WorkoutScreen({ onExit, onFinished }: { onExit: () => void; onFi
   const [openUid, setOpenUid] = useState<string | null>(() => w.exercises.find(we => !we.skipped && we.sets.some(s => !s.done))?.uid ?? null);
   const [menu, setMenu] = useState<string | null>(null);
   const [swap, setSwap] = useState<string | null>(null);
+  const [pain, setPain] = useState<string | null>(null);
   const [confirm, setConfirm] = useState(false);
   const { msg, show } = useToast();
 
@@ -151,6 +152,7 @@ export function WorkoutScreen({ onExit, onFinished }: { onExit: () => void; onFi
             onToggle={() => setOpenUid(openUid === we.uid ? null : we.uid)}
             onMenu={() => setMenu(we.uid)}
             onSwap={() => setSwap(we.uid)}
+            onPain={() => setPain(we.uid)}
             onLog={(setId, weight, reps) => logSet(we, setId, weight, reps)}
             onEffort={(e) => { dispatch({ type: 'SET_EFFORT', uid: we.uid, effort: e }); const n = nextOpen(we.uid); if (e && n) setOpenUid(n); }}
             onNextAfterDone={() => { const n = nextOpen(we.uid); setOpenUid(n); }}
@@ -184,6 +186,14 @@ export function WorkoutScreen({ onExit, onFinished }: { onExit: () => void; onFi
         </Sheet>
       )}
 
+      {pain && w.exercises.find(x => x.uid === pain) && (
+        <PainSheet
+          we={w.exercises.find(x => x.uid === pain)!}
+          onClose={() => setPain(null)}
+          onSwap={() => { const u = pain; setPain(null); setSwap(u); }}
+          onSkip={() => { dispatch({ type: 'SKIP', uid: pain, skipped: true }); setPain(null); }}
+        />
+      )}
       {swapEx && <SwapSheet we={swapEx} onClose={() => setSwap(null)} onSwapped={(name, uid) => { show(`Swapped to ${name}`); setSwap(null); setOpenUid(uid); }} />}
 
       {confirm && (
@@ -200,9 +210,9 @@ export function WorkoutScreen({ onExit, onFinished }: { onExit: () => void; onFi
   );
 }
 
-function ExerciseCard({ we, index, open, last, onToggle, onMenu, onSwap, onLog, onEffort, onNextAfterDone }: {
+function ExerciseCard({ we, index, open, last, onToggle, onMenu, onSwap, onPain, onLog, onEffort, onNextAfterDone }: {
   we: WorkoutExercise; index: number; open: boolean; last: string | null;
-  onToggle: () => void; onMenu: () => void; onSwap: () => void;
+  onToggle: () => void; onMenu: () => void; onSwap: () => void; onPain: () => void;
   onLog: (setId: string, weight: number, reps: number) => void; onEffort: (e: Effort | undefined) => void; onNextAfterDone: () => void;
 }) {
   const { dispatch } = useApp();
@@ -210,6 +220,8 @@ function ExerciseCard({ we, index, open, last, onToggle, onMenu, onSwap, onLog, 
   const working = we.sets.filter(s => !s.warmup);
   const doneCount = working.filter(s => s.done).length;
   const complete = doneCount === working.length && working.length > 0;
+  const doneWorking = doneCount;
+  const firstTime = we.rxAction === 'start' || we.rxAction === 'estimate';
   const active = we.sets.find(s => !s.done);
   const addLoad = ex.load === 'bodyweight' && ex.canAddLoad;
   const showWeight = ex.load === 'external' || addLoad;
@@ -236,6 +248,23 @@ function ExerciseCard({ we, index, open, last, onToggle, onMenu, onSwap, onLog, 
             <div className="last">{last ?? 'First time doing this one'}</div>
             {we.rxReason && <div className={`why-chip ${reasonKind}`}><Icon name={reasonKind === 'up' ? 'trend' : 'info'} size={16} /><span>{we.rxReason}</span></div>}
           </div>
+          {firstTime && doneWorking === 0 && !we.calibrated && (
+            <div className="guide" role="note">
+              <div className="bold small">How heavy should this feel?</div>
+              <div className="small">Pick a weight where you finish about <b>{we.rir} reps short of failure</b>. If the last rep is a slow grind, it’s too heavy. If you could do 5–6 more, it’s too light. Don’t worry about getting it perfect — you’ll be asked after set 1.</div>
+            </div>
+          )}
+          {doneWorking >= 1 && !we.calibrated && !complete && (
+            <div className="guide" role="group" aria-label="Was that weight right?">
+              <div className="bold small">Set 1 done — was that weight right?</div>
+              <div className="chips" style={{ marginTop: 8 }}>
+                <button className="chip" onClick={() => dispatch({ type: 'ADJUST_REMAINING', uid: we.uid, dir: 'light' })}>Too light</button>
+                <button className="chip" onClick={() => dispatch({ type: 'ADJUST_REMAINING', uid: we.uid, dir: 'ok' })}>About right</button>
+                <button className="chip warn" onClick={() => dispatch({ type: 'ADJUST_REMAINING', uid: we.uid, dir: 'heavy' })}>Too heavy</button>
+              </div>
+              <div className="tiny muted" style={{ marginTop: 6 }}>Tapping Too light / Too heavy changes the remaining sets for you.</div>
+            </div>
+          )}
           <div className="sets">
             {we.sets.map((s, i) => {
               const n = we.sets.slice(0, i + 1).filter(x => !x.warmup).length;
@@ -259,10 +288,13 @@ function ExerciseCard({ we, index, open, last, onToggle, onMenu, onSwap, onLog, 
                       {showWeight && <Stepper label={addLoad ? 'Added kg' : 'Weight'} value={s.weight} step={step} unit="kg" onChange={v => dispatch({ type: 'EDIT_SET', uid: we.uid, setId: s.id, weight: v, reps: s.reps })} />}
                       <Stepper label="Reps" value={s.reps} step={1} decimals={0} min={0} max={100} onChange={v => dispatch({ type: 'EDIT_SET', uid: we.uid, setId: s.id, weight: s.weight, reps: v })} />
                     </div>
+                    {!s.warmup && s.reps < we.repMin && <div className="tiny" style={{ color: 'var(--warn)' }}>Below the {we.repMin}–{we.repMax} range — if you can’t reach {we.repMin}, the weight is too heavy. Log it honestly; next time adjusts.</div>}
+                    {!s.warmup && s.reps > we.repMax + 2 && <div className="tiny" style={{ color: 'var(--info)' }}>Well above the {we.repMin}–{we.repMax} range — that weight is probably too light.</div>}
                     <div className="row">
                       <button className="btn primary big" onClick={() => onLog(s.id, s.weight, s.reps)}>Log set</button>
                       {s.warmup && <button className="btn" style={{ minHeight: 58 }} onClick={() => dispatch({ type: 'DROP_SET', uid: we.uid, setId: s.id })}>Skip</button>}
                     </div>
+                    <button className="btn ghost" style={{ minHeight: 40, color: 'var(--warn)' }} onClick={onPain}>Sharp pain? Stop here</button>
                   </div>
                 );
               }
@@ -288,6 +320,26 @@ function ExerciseCard({ we, index, open, last, onToggle, onMenu, onSwap, onLog, 
         </>
       )}
     </section>
+  );
+}
+
+function PainSheet({ we, onClose, onSwap, onSkip }: { we: WorkoutExercise; onClose: () => void; onSwap: () => void; onSkip: () => void }) {
+  const { dispatch, today } = useApp();
+  const [area, setArea] = useState<Joint | null>(null);
+  return (
+    <Sheet title="Stop this exercise" onClose={onClose}>
+      <p className="small">Muscle burn and hard effort are normal. <b>Sharp, pinching, joint or nerve-like pain is not</b> — don’t push through it. {EX[we.exerciseId].name} is paused for now.</p>
+      <div className="section-label">Where does it hurt?</div>
+      <div className="chips">
+        {JOINTS.map(j => <button key={j} className="chip warn" aria-pressed={area === j} onClick={() => { setArea(j); dispatch({ type: 'ADD_LIMIT', area: j, until: addDays(today, 7) }); }}>{j.replace('_', ' ')}</button>)}
+      </div>
+      <p className="tiny muted" style={{ marginTop: 10 }}>We’ll avoid movements that load that area for 7 days. This isn’t a diagnosis — if it persists or worsens, see a qualified professional.</p>
+      <div className="spacer" />
+      <div className="col" style={{ gap: 8 }}>
+        <button className="btn primary big" onClick={onSwap}>Find a different exercise</button>
+        <button className="btn block" onClick={onSkip}>Skip it for today</button>
+      </div>
+    </Sheet>
   );
 }
 
@@ -319,7 +371,14 @@ function SwapSheet({ we, onClose, onSwapped }: { we: WorkoutExercise; onClose: (
 
   return (
     <Sheet title={`Swap ${src.name}`} sub="Closest movement first — same muscles, same intent." onClose={onClose}>
-      {subs.length === 0 && <div className="empty">No close match with your current equipment and restrictions. Try skipping this exercise.</div>}
+      {subs.length === 0 && (
+        <div className="empty">
+          No close match with your current equipment and restrictions.
+          <div className="spacer" />
+          <button className="btn block" onClick={() => { dispatch({ type: 'SKIP', uid: we.uid, skipped: true }); onClose(); }}>Skip this exercise</button>
+          <p className="tiny" style={{ marginTop: 8 }}>The missing sets roll into later sessions where a safe option exists.</p>
+        </div>
+      )}
       {subs.map((s, i) => (
         <button key={s.exercise.id} className="sw-item" onClick={() => pick(s.exercise.id)} data-testid="sub-option">
           <div className="grow">
