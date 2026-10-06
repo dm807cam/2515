@@ -9,6 +9,8 @@ A mobile-first workout optimizer for busy people: the smallest workout that stil
 
 See `docs/PRODUCT_SPEC.md` for the 2/5/15 critique, the model and the iteration log.
 
+See `docs/KETTLEBELL_PLAN.md` (German) for a 12-week body-recomposition program built on the same 2/5/15 rules that needs only a single 20 kg kettlebell.
+
     npm install
     npm run dev     # add ?date=2026-10-07 to time-travel
     npm test        # engine + store tests (incl. simulated users)
